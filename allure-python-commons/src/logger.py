@@ -50,3 +50,9 @@ class AllureFileLogger(object):
                 attached_file.write(body.encode('utf-8'))
             else:
                 attached_file.write(body)
+
+    @hookimpl
+    def store_environment(self, env):
+        filename = 'environment.properties'
+        with io.open(os.path.join(self._report_dir, filename), 'w', encoding='utf8') as file:
+            file.writelines([u"{0}={1}\n".format(*x) for x in env.items()])

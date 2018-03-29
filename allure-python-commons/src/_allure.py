@@ -62,6 +62,9 @@ def issue(url, name=None):
 def testcase(url, name=None):
     return link(url, link_type=LinkType.TEST_CASE, name=name)
 
+def environment(**kwargs):
+    return plugin_manager.hook.update_environment(keys=kwargs)
+
 
 class Dynamic(object):
 
@@ -110,11 +113,12 @@ class Dynamic(object):
         Dynamic.link(url, link_type=LinkType.TEST_CASE, name=name)
 
 
-def step(title):
+def step(title, *args, **kwargs):
+    args = {x: '' for x in args}
     if callable(title):
-        return StepContext(title.__name__, ({}, {}))(title)
+        return StepContext(title.__name__, (args, kwargs))(title)
     else:
-        return StepContext(title, ({}, {}))
+        return StepContext(title, (args, kwargs))
 
 
 class StepContext:

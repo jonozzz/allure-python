@@ -62,6 +62,10 @@ class AllureUserHooks(object):
     def attach_file(self, source, name, attachment_type, extension):
         """ attach file """
 
+    @hookspec
+    def update_environment(self, keys):
+        """ update env """
+
 
 class AllureDeveloperHooks(object):
 

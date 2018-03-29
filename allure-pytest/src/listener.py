@@ -13,7 +13,7 @@ from allure_commons.model2 import StatusDetails
 from allure_commons.model2 import Parameter
 from allure_commons.model2 import Label, Link
 from allure_commons.model2 import Status
-from allure_commons.types import LabelType
+from allure_commons.types import LabelType, AttachmentType
 from allure_pytest.utils import allure_description, allure_description_html
 from allure_pytest.utils import allure_labels, allure_links, pytest_markers
 from allure_pytest.utils import allure_full_name, allure_package, allure_name
@@ -44,17 +44,17 @@ class AllureListener(object):
                                      status=get_status(exc_val),
                                      statusDetails=get_status_details(exc_type, exc_val, exc_tb))
 
-    @allure_commons.hookimpl
-    def start_fixture(self, parent_uuid, uuid, name):
-        after_fixture = TestAfterResult(name=name, start=now())
-        self.allure_logger.start_after_fixture(parent_uuid, uuid, after_fixture)
-
-    @allure_commons.hookimpl
-    def stop_fixture(self, parent_uuid, uuid, name, exc_type, exc_val, exc_tb):
-        self.allure_logger.stop_after_fixture(uuid,
-                                              stop=now(),
-                                              status=get_status(exc_val),
-                                              statusDetails=get_status_details(exc_type, exc_val, exc_tb))
+    # @allure_commons.hookimpl
+    # def start_fixture(self, parent_uuid, uuid, name):
+    #     after_fixture = TestAfterResult(name=name, start=now())
+    #     self.allure_logger.start_after_fixture(parent_uuid, uuid, after_fixture)
+    #
+    # @allure_commons.hookimpl
+    # def stop_fixture(self, parent_uuid, uuid, name, exc_type, exc_val, exc_tb):
+    #     self.allure_logger.stop_after_fixture(uuid,
+    #                                           stop=now(),
+    #                                           status=get_status(exc_val),
+    #                                           statusDetails=get_status_details(exc_type, exc_val, exc_tb))
 
     @pytest.hookimpl(hookwrapper=True, tryfirst=True)
     def pytest_runtest_protocol(self, item, nextitem):
@@ -91,6 +91,7 @@ class AllureListener(object):
 
         uuid = self._cache.pop(item.nodeid)
         self.allure_logger.close_test(uuid)
+        #self.allure_logger.store_environment()
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_call(self, item):
@@ -117,16 +118,16 @@ class AllureListener(object):
 
         self.allure_logger.update_group(container_uuid, start=now())
 
-        before_fixture_uuid = uuid4()
-        before_fixture = TestBeforeResult(name=fixture_name, start=now())
-        self.allure_logger.start_before_fixture(container_uuid, before_fixture_uuid, before_fixture)
+        # before_fixture_uuid = uuid4()
+        # before_fixture = TestBeforeResult(name=fixture_name, start=now())
+        # self.allure_logger.start_before_fixture(container_uuid, before_fixture_uuid, before_fixture)
 
         outcome = yield
 
-        self.allure_logger.stop_before_fixture(before_fixture_uuid,
-                                               stop=now(),
-                                               status=get_outcome_status(outcome),
-                                               statusDetails=get_outcome_status_details(outcome))
+        # self.allure_logger.stop_before_fixture(before_fixture_uuid,
+        #                                        stop=now(),
+        #                                        status=get_outcome_status(outcome),
+        #                                        statusDetails=get_outcome_status_details(outcome))
 
         finalizers = getattr(fixturedef, '_finalizers', [])
         for index, finalizer in enumerate(finalizers):
@@ -172,6 +173,9 @@ class AllureListener(object):
                 test_result.statusDetails = status_details
 
         if report.when == 'teardown':
+            [self.attach_data(contents, name, AttachmentType.TEXT, None) for (name, contents) in dict(
+                report.sections).items()]
+
             if status in (Status.FAILED, Status.BROKEN) and test_result.status == Status.PASSED:
                 test_result.status = status
                 test_result.statusDetails = status_details
@@ -215,6 +219,10 @@ class AllureListener(object):
         test_result = self.allure_logger.get_test(None)
         for label in labels if test_result else ():
             test_result.labels.append(Label(label_type, label))
+
+    @allure_commons.hookimpl
+    def update_environment(self, keys):
+        return self.allure_logger.update_environment(keys)
 
 
 class ItemCache(object):

@@ -8,6 +8,7 @@ from allure_commons._allure import link, issue, testcase
 from allure_commons._allure import Dynamic as dynamic
 from allure_commons._allure import step
 from allure_commons._allure import attach
+from allure_commons._allure import environment
 from allure_commons.types import Severity as severity_level
 from allure_commons.types import AttachmentType as attachment_type
 
@@ -22,6 +23,7 @@ __all__ = [
     'epic',
     'feature',
     'story',
+    'environment',
 
     'link',
     'issue',

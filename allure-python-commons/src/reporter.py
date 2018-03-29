@@ -11,6 +11,7 @@ from allure_commons._core import plugin_manager
 class AllureReporter(object):
     def __init__(self):
         self._items = OrderedDict()
+        self.environment = {}
 
     def _update_item(self, uuid, **kwargs):
         item = self._items[uuid] if uuid else self._items[next(reversed(self._items))]
@@ -103,3 +104,7 @@ class AllureReporter(object):
     def attach_data(self, uuid, body, name=None, attachment_type=None, extension=None):
         file_name = self._attach(uuid, name=name, attachment_type=attachment_type, extension=extension)
         plugin_manager.hook.report_attached_data(body=body, file_name=file_name)
+
+    def update_environment(self, keys):
+        self.environment.update(keys)
+        plugin_manager.hook.store_environment(env=self.environment)

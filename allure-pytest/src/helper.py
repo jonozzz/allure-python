@@ -36,6 +36,7 @@ class AllureTestHelper(object):
 
     @allure_commons.hookimpl
     def decorate_as_link(self, url, link_type, name):
+        name = url if name is None else name
         allure_link_marker = '{prefix}.{link_type}:{postfix}'.format(
             prefix=ALLURE_LINK_PREFIX,
             link_type=link_type,
