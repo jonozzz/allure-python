@@ -91,7 +91,7 @@ class AllureListener(object):
 
         uuid = self._cache.pop(item.nodeid)
         self.allure_logger.close_test(uuid)
-        #self.allure_logger.store_environment()
+        self.allure_logger.update_environment({})
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_call(self, item):
