@@ -66,6 +66,7 @@ Expected: ...
 
 """
 
+import sys
 import os
 import json
 import fnmatch
@@ -73,7 +74,11 @@ from hamcrest import all_of, any_of
 from hamcrest import has_property
 from hamcrest import has_item
 from hamcrest import has_entry
-from hamcrest import ends_with
+from hamcrest import ends_with, starts_with
+from hamcrest.core.base_matcher import BaseMatcher
+
+if sys.version_info[0] < 3:
+    from io import open
 
 
 class AllureReport(object):
@@ -86,7 +91,7 @@ class AllureReport(object):
     def _report_items(report_dir, glob):
         for _file in os.listdir(report_dir):
             if fnmatch.fnmatch(_file, glob):
-                with open(os.path.join(report_dir, _file)) as report_file:
+                with open(os.path.join(report_dir, _file), encoding="utf-8") as report_file:
                     yield report_file
 
 
@@ -96,9 +101,46 @@ def has_test_case(name, *matchers):
                                  all_of(
                                         any_of(
                                                has_entry('fullName', ends_with(name)),
-                                               has_entry('name', ends_with(name))
+                                               has_entry('name', starts_with(name))
                                                ),
                                         *matchers
                                         )
                                  )
                         )
+
+
+class ContainsExactly(BaseMatcher):
+
+    def __init__(self, num, matcher):
+        self.matcher = matcher
+        self.count = 0
+        self.num = num
+
+    def _matches(self, item):
+        self.count = 0
+        for subitem in item:
+            if self.matcher.matches(subitem):
+                self.count += 1
+
+        if self.count == self.num:
+            return True
+        else:
+            return False
+
+    def describe_to(self, description):
+        description.append_text('exactly {} item(s) matching '.format(self.num)).append_text(self.matcher)
+
+
+def has_only_n_test_cases(name, num, *matchers):
+    return has_property('test_cases',
+                        ContainsExactly(num,
+                                        all_of(
+                                                any_of(
+                                                        has_entry('fullName', ends_with(name)),
+                                                        has_entry('name', ends_with(name))
+                                                        ),
+                                                *matchers
+                                              )
+                                        )
+                        )
+

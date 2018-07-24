@@ -12,6 +12,7 @@ class AllureReporter(object):
     def __init__(self):
         self._items = OrderedDict()
         self.environment = {}
+        self._orphan_items = []
 
     def _update_item(self, uuid, **kwargs):
         item = self._items[uuid] if uuid else self._items[next(reversed(self._items))]
@@ -30,8 +31,10 @@ class AllureReporter(object):
     def get_item(self, uuid):
         return self._items.get(uuid)
 
-    def get_last_item(self, item_type):
+    def get_last_item(self, item_type=None):
         for _uuid in reversed(self._items):
+            if item_type is None:
+                return self._items.get(_uuid)
             if type(self._items[_uuid]) == item_type:
                 return self._items.get(_uuid)
 
@@ -73,14 +76,23 @@ class AllureReporter(object):
         test_case = self._items.pop(uuid)
         plugin_manager.hook.report_result(result=test_case)
 
+    def drop_test(self, uuid):
+        self._items.pop(uuid)
+
     def start_step(self, parent_uuid, uuid, step):
         parent_uuid = parent_uuid if parent_uuid else self._last_executable()
-        self._items[parent_uuid].steps.append(step)
-        self._items[uuid] = step
+        if parent_uuid is None:
+            self._orphan_items.append(uuid)
+        else:
+            self._items[parent_uuid].steps.append(step)
+            self._items[uuid] = step
 
     def stop_step(self, uuid, **kwargs):
-        self._update_item(uuid, **kwargs)
-        self._items.pop(uuid)
+        if uuid in self._orphan_items:
+            self._orphan_items.remove(uuid)
+        else:
+            self._update_item(uuid, **kwargs)
+            self._items.pop(uuid)
 
     def _attach(self, uuid, name=None, attachment_type=None, extension=None):
         mime_type = attachment_type

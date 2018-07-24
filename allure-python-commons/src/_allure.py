@@ -3,7 +3,7 @@ from functools import wraps
 from allure_commons._core import plugin_manager
 from allure_commons.types import LabelType, LinkType
 from allure_commons.utils import uuid4
-from allure_commons.utils import func_parameters
+from allure_commons.utils import func_parameters, represent
 
 
 def safely(result):
@@ -116,9 +116,9 @@ class Dynamic(object):
 def step(title, *args, **kwargs):
     args = {x: '' for x in args}
     if callable(title):
-        return StepContext(title.__name__, (args, kwargs))(title)
+        return StepContext(title.__name__, {})(title)
     else:
-        return StepContext(title, (args, kwargs))
+        return StepContext(title, {})
 
 
 class StepContext:
@@ -129,10 +129,7 @@ class StepContext:
         self.uuid = uuid4()
 
     def __enter__(self):
-        args, kwargs = self.params
-        args.update(kwargs)
-        params = list(args.items())
-        plugin_manager.hook.start_step(uuid=self.uuid, title=self.title, params=params)
+        plugin_manager.hook.start_step(uuid=self.uuid, title=self.title, params=self.params)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         plugin_manager.hook.stop_step(uuid=self.uuid, title=self.title, exc_type=exc_type, exc_val=exc_val,
@@ -143,8 +140,8 @@ class StepContext:
         def impl(*a, **kw):
             __tracebackhide__ = True
             params = func_parameters(func, *a, **kw)
-            args, kwargs = params
-            with StepContext(self.title.format(*args.values(), **kwargs), params):
+            args = list(map(lambda x: represent(x), a))
+            with StepContext(self.title.format(*args, **params), params):
                 return func(*a, **kw)
         return impl
 
@@ -170,9 +167,7 @@ class fixture(object):
         self.parameters = None
 
     def __call__(self, *args, **kwargs):
-        _args, _kwargs = func_parameters(self._fixture_function, *args, **kwargs)
-        _args.update(kwargs)
-        self.parameters = list(_args.items())
+        self.parameters = func_parameters(self._fixture_function, *args, **kwargs)
 
         with self:
             return self._fixture_function(*args, **kwargs)
@@ -200,9 +195,7 @@ class test(object):
         self.parameters = None
 
     def __call__(self, *args, **kwargs):
-        _args, _kwargs = func_parameters(self._test, *args, **kwargs)
-        _args.update(_kwargs)
-        self.parameters = list(_args.items())
+        self.parameters = func_parameters(self._test, *args, **kwargs)
 
         with self:
             return self._test(*args, **kwargs)

@@ -21,6 +21,9 @@ class LabelType(str, Enum):
     EPIC = 'epic'
     FEATURE = 'feature'
     STORY = 'story'
+    PARENT_SUITE = 'parentSuite'
+    SUITE = 'suite'
+    SUB_SUITE = 'subSuite'
     SEVERITY = 'severity'
     THREAD = 'thread'
     HOST = 'host'
@@ -56,3 +59,5 @@ class AttachmentType(Enum):
     MP4 = ("video/mp4", "mp4")
     OGG = ("video/ogg", "ogg")
     WEBM = ("video/webm", "webm")
+
+    PDF = ("application/pdf", "pdf")

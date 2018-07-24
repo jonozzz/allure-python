@@ -9,7 +9,7 @@ class AllureFormatter(Formatter):
     def __init__(self, stream_opener, config):
         super(AllureFormatter, self).__init__(stream_opener, config)
 
-        self.listener = AllureListener()
+        self.listener = AllureListener(config)
         file_logger = AllureFileLogger(self.stream_opener.name)
 
         allure_commons.plugin_manager.register(self.listener)
