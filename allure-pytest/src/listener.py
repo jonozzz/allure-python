@@ -14,7 +14,7 @@ from allure_commons.model2 import StatusDetails
 from allure_commons.model2 import Parameter
 from allure_commons.model2 import Label, Link
 from allure_commons.model2 import Status
-from allure_commons.types import LabelType
+from allure_commons.types import LabelType, AttachmentType
 from allure_pytest.utils import allure_description, allure_description_html
 from allure_pytest.utils import allure_labels, allure_links, pytest_markers
 from allure_pytest.utils import allure_full_name, allure_package, allure_name
@@ -182,6 +182,9 @@ class AllureListener(object):
                 test_result.statusDetails = status_details
 
         if report.when == 'teardown':
+            [self.attach_data(contents, name, AttachmentType.TEXT, None) for (name, contents) in dict(
+                report.sections).items()]
+
             if status in (Status.FAILED, Status.BROKEN) and test_result.status == Status.PASSED:
                 test_result.status = status
                 test_result.statusDetails = status_details
@@ -228,6 +231,10 @@ class AllureListener(object):
         test_result = self.allure_logger.get_test(None)
         for label in labels if test_result else ():
             test_result.labels.append(Label(label_type, label))
+
+    @allure_commons.hookimpl
+    def update_environment(self, keys):
+        return self.allure_logger.update_environment(keys)
 
 
 class ItemCache(object):

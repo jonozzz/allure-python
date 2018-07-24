@@ -62,8 +62,9 @@ def issue(url, name=None):
 def testcase(url, name=None):
     return link(url, link_type=LinkType.TEST_CASE, name=name)
 
+
 def environment(**kwargs):
-    return plugin_manager.hook.update_environment(keys=kwargs)
+    return safely(plugin_manager.hook.update_environment(keys=kwargs))
 
 
 class Dynamic(object):
@@ -111,6 +112,10 @@ class Dynamic(object):
     @staticmethod
     def testcase(url, name=None):
         Dynamic.link(url, link_type=LinkType.TEST_CASE, name=name)
+
+    @staticmethod
+    def environment(**kwargs):
+        plugin_manager.hook.update_environment(keys=kwargs)
 
 
 def step(title, *args, **kwargs):
