@@ -24,6 +24,11 @@ def pytest_addoption(parser):
                                            dest="clean_alluredir",
                                            help="Clean alluredir folder if it exists")
 
+    parser.getgroup("reporting").addoption('--allure-no-capture',
+                                           action="store_false",
+                                           dest="attach_capture",
+                                           help="Do not attach pytest captured logging/stdout/stderr to report")
+
     def label_type(type_name, legal_values=set()):
         def a_label_type(string):
             atoms = set(string.split(','))
@@ -127,7 +132,3 @@ def pytest_collection_modifyitems(items, config):
                              config.option.allure_severities)
 
     items[:] = filter(lambda item: arg_labels & set(allure_labels(item)) if arg_labels else True, items)
-
-
-def pytest_namespace():
-    return {"allure": allure}

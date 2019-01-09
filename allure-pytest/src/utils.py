@@ -19,7 +19,7 @@ ALLURE_UNIQUE_LABELS = ['severity', 'thread', 'host']
 
 
 def get_marker_value(item, keyword):
-    marker = item.keywords.get(keyword)
+    marker = item.get_closest_marker(keyword)
     return marker.args[0] if marker and marker.args else None
 
 
@@ -42,7 +42,7 @@ def allure_description_html(item):
 def allure_labels(item):
     for keyword in item.keywords.keys():
         if keyword.startswith(ALLURE_LABEL_PREFIX):
-            marker = item.get_marker(keyword)
+            marker = item.get_closest_marker(keyword)
             label_type = marker.kwargs['label_type']
             if label_type in ALLURE_UNIQUE_LABELS:
                 yield (label_type, marker.args[0])
@@ -54,7 +54,7 @@ def allure_labels(item):
 def allure_links(item):
     for keyword in item.keywords.keys():
         if keyword.startswith(ALLURE_LINK_PREFIX):
-            marker = item.get_marker(keyword)
+            marker = item.get_closest_marker(keyword)
             link_type = marker.kwargs['link_type']
             url = marker.args[0]
             name = marker.kwargs['name']
@@ -62,22 +62,27 @@ def allure_links(item):
 
 
 def pytest_markers(item):
+    """Do not consider pytest marks (has args/kwargs) as user tags
+    e.g. @pytest.mark.parametrize/skip/skipif/usefixtures etc..."""
     for keyword in item.keywords.keys():
-        if not any((keyword.startswith('allure_'),
-                    keyword == 'parametrize')):
-            marker = item.get_marker(keyword)
-            if marker:
-                yield mark_to_str(marker)
+        if keyword.startswith('allure_'):
+            continue
+        marker = item.get_closest_marker(keyword)
+        if marker is None:
+            continue
+        user_tag_mark = (not marker.args and not marker.kwargs)
+        if marker.name == "marker" or user_tag_mark:
+            yield mark_to_str(marker)
 
 
 def mark_to_str(marker):
     args = [represent(arg) for arg in marker.args]
     kwargs = ['{name}={value}'.format(name=key, value=represent(marker.kwargs[key])) for key in marker.kwargs]
+    markstr = '{name}'.format(name=marker.name)
     if args or kwargs:
         parameters = ', '.join(args + kwargs)
-        return '@pytest.mark.{name}({parameters})'.format(name=marker.name, parameters=parameters)
-    else:
-        return '@pytest.mark.{name}'.format(name=marker.name)
+        markstr = '{}({})'.format(markstr, parameters)
+    return markstr
 
 
 def allure_package(item):
@@ -106,7 +111,7 @@ def allure_suite_labels(item):
     clazz = possibly_clazz if tail else None
     file_name, path = islice(chain(reversed(head.rsplit('/', 1)), [None]), 2)
     module = file_name.split('.')[0]
-    package = path.replace('/', '.')
+    package = path.replace('/', '.') if path else None
     pairs = zip([LabelType.PARENT_SUITE, LabelType.SUITE, LabelType.SUB_SUITE], [package, module, clazz])
     return [(name, value) for name, value in pairs if value is not None]
 

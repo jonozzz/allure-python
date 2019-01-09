@@ -1,6 +1,9 @@
 from __future__ import absolute_import
 
+import os
 from collections import OrderedDict
+import allure_commons
+
 from allure_commons.model2 import TestResultContainer, TestResult, TestStepResult, TestAfterResult, TestBeforeResult, \
     StatusDetails, Label, Link
 from allure_commons.reporter import AllureReporter
@@ -12,9 +15,9 @@ from allure_commons.utils import platform_label
 from robot.libraries.BuiltIn import BuiltIn
 from allure_robotframework.types import RobotKeywordType, RobotLogLevel
 from allure_robotframework import utils
-import os
 from allure_robotframework.allure_listener import AllureListener
-import allure_commons
+
+from allure_robotframework.utils import allure_tags, allure_labels
 
 
 # noinspection PyPep8Naming
@@ -29,6 +32,8 @@ class allure_robotframework(object):
         self.items_log = {}
         self.pool_id = None
         self.links = OrderedDict()
+        self._previous_keyword_failed = False
+        self._traceback_message = None
 
         self.reporter = AllureReporter()
         self.listener = AllureListener(self.reporter)
@@ -62,11 +67,14 @@ class allure_robotframework(object):
 
     def log_message(self, message):
         level = message.get('level')
+        if self._previous_keyword_failed:
+            self._traceback_message = message.get('message')
+            self._previous_keyword_failed = False
         if level == RobotLogLevel.FAIL:
+            self._previous_keyword_failed = True
             self.reporter.get_item(self.stack[-1]).statusDetails = StatusDetails(message=message.get('message'))
         self.append_message_to_last_item_log(message, level)
 
-    # listener event ends
     def start_new_group(self, name, attributes):
         uuid = uuid4()
         self.set_suite_link(attributes.get('metadata'), uuid)
@@ -101,12 +109,17 @@ class allure_robotframework(object):
         test = self.reporter.get_test(uuid)
         test.status = utils.get_allure_status(attributes.get('status'))
         test.labels.extend(utils.get_allure_suites(attributes.get('longname')))
-        test.labels.extend(utils.get_allure_tags(attributes.get('tags')))
-        test.labels.append(utils.get_allure_thread(self.pool_id))
-        test.labels.append(Label(LabelType.HOST, value=host_tag()))
+
+        test.labels.extend(allure_tags(attributes))
+        test.labels.extend(allure_labels(attributes, LabelType.EPIC))
+        test.labels.extend(allure_labels(attributes, LabelType.FEATURE))
+        test.labels.extend(allure_labels(attributes, LabelType.STORY))
+
+        test.labels.append(Label(name=LabelType.THREAD, value=self.pool_id))
+        test.labels.append(Label(name=LabelType.HOST, value=host_tag()))
         test.labels.append(Label(name=LabelType.FRAMEWORK, value='robotframework'))
         test.labels.append(Label(name=LabelType.LANGUAGE, value=platform_label()))
-        test.statusDetails = StatusDetails(message=attributes.get('message'))
+        test.statusDetails = StatusDetails(message=attributes.get('message'), trace=self.get_traceback_message())
         test.description = attributes.get('doc')
         last_link = list(self.links.values())[-1] if self.links else None
         if attributes.get(Severity.CRITICAL, 'no') == 'yes':
@@ -181,6 +194,11 @@ class allure_robotframework(object):
     def remove_suite_link(self, uuid):
         if self.links.get(uuid):
             self.links.pop(uuid)
+
+    def get_traceback_message(self):
+        if BuiltIn().get_variable_value('${LOG LEVEL}') in (RobotLogLevel.DEBUG, RobotLogLevel.TRACE):
+            return self._traceback_message
+        return None
 
     def close(self):
         for plugin in [self.logger, self.listener]:

@@ -101,7 +101,6 @@ class AllureListener(object):
         test_result = self.allure_logger.get_test(uuid)
         test_result.labels.extend([Label(name=name, value=value) for name, value in allure_labels(item)])
         test_result.labels.extend([Label(name=LabelType.TAG, value=value) for value in pytest_markers(item)])
-        test_result.labels.extend([Label(name=LabelType.TAG, value=value) for value in pytest_markers(item)])
         test_result.labels.extend([Label(name=name, value=value) for name, value in allure_suite_labels(item)])
         test_result.labels.append(Label(name=LabelType.HOST, value=self._host))
         test_result.labels.append(Label(name=LabelType.THREAD, value=self._thread))
@@ -136,9 +135,8 @@ class AllureListener(object):
 
         finalizers = getattr(fixturedef, '_finalizers', [])
         for index, finalizer in enumerate(finalizers):
-            name = '{fixture}::{finalizer}'.format(fixture=fixturedef.argname, finalizer=getattr(finalizer,
-                                                                                                 '__name__',
-                                                                                                 '<unknown>'))
+            name = '{fixture}::{finalizer}'.format(fixture=fixturedef.argname,
+                                                   finalizer=getattr(finalizer, "__name__", index))
             finalizers[index] = allure_commons.fixture(finalizer, parent_uuid=container_uuid, name=name)
 
     @pytest.hookimpl(hookwrapper=True)
@@ -188,6 +186,12 @@ class AllureListener(object):
             if status in (Status.FAILED, Status.BROKEN) and test_result.status == Status.PASSED:
                 test_result.status = status
                 test_result.statusDetails = status_details
+
+            if self.config.option.attach_capture:
+                # Capture at teardown contains data from whole test (setup, call, teardown)
+                self.attach_data(report.caplog, "log", AttachmentType.TEXT, None)
+                self.attach_data(report.capstdout, "stdout", AttachmentType.TEXT, None)
+                self.attach_data(report.capstderr, "stderr", AttachmentType.TEXT, None)
 
             uuid = self._cache.pop(item.nodeid)
             self.allure_logger.close_test(uuid)
